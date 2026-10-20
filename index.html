@@ -256,7 +256,7 @@ footer{font-size:12px;color:var(--muted)}
   const SUPABASE_URL="https://pzabrkbtwuzrzhmvksri.supabase.co";
   const SUPABASE_KEY="sb_publishable_xk7ewXc84jJh8Ej6kBzMYA_7GLAUpOo";
   const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
-  const GOOGLE_READY=false; // Googleログインの設定が終わったら true にする
+  const GOOGLE_READY=true; // Googleログインの設定が終わったら true にする
   document.getElementById("google-row").hidden=!GOOGLE_READY;
   document.getElementById("login-soon").hidden=GOOGLE_READY;
 
