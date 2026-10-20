@@ -1,0 +1,585 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>ジャンプスケア予報</title>
+<meta name="description" content="映画の「急に驚かされる場面」がいつ来るかを、ネタバレなしで共有するサイト。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+body{margin:0}
+[hidden]{display:none!important}
+
+/* Layout: one calm reading column; a "forecast" card per film with a runtime strip showing where scares fall */
+:root{
+  --bg:#eef3f1; --surface:#ffffff; --ink:#1c3a3a; --muted:#5d7774; --line:#d3e0dc;
+  --accent:#2f7d72; --accent-soft:#dcefe9;
+  --lv1:#9cc7a4; --lv2:#e3b45a; --lv3:#d9705a;
+  --display:"Zen Maru Gothic","Hiragino Maru Gothic ProN",system-ui,sans-serif;
+  --body:"Zen Kaku Gothic New","Hiragino Sans","Noto Sans JP",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#13201f; --surface:#1b2b2a; --ink:#dcebe7; --muted:#93aca8; --line:#2c403e;
+  --accent:#6cc2b3; --accent-soft:#21403c; --lv1:#6fa47a; --lv2:#c99a43; --lv3:#d47462; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#13201f; --surface:#1b2b2a; --ink:#dcebe7; --muted:#93aca8; --line:#2c403e;
+  --accent:#6cc2b3; --accent-soft:#21403c; --lv1:#6fa47a; --lv2:#c99a43; --lv3:#d47462; color-scheme:dark}
+
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.7}
+.wrap{max-width:720px;margin:0 auto;padding-block:28px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:28px}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;line-height:1.35}
+header h1{font-size:clamp(28px,6vw,38px);font-weight:700;letter-spacing:.02em}
+header p{margin:.4em 0 0;color:var(--muted);max-width:36em}
+.rules{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;padding:0;list-style:none}
+.rules li{font-size:13px;background:var(--accent-soft);color:var(--ink);padding:4px 12px;border-radius:999px}
+
+.tools{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+input,select,textarea,button{font:inherit;color:inherit}
+input[type=search],.field input,.field select,.field textarea{background:var(--surface);border:1.5px solid var(--line);border-radius:10px;padding:9px 12px;width:100%;box-sizing:border-box}
+input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible,summary:focus-visible{outline:2.5px solid var(--accent);outline-offset:2px}
+.tools input[type=search]{flex:1 1 220px}
+.toggle{display:flex;align-items:center;gap:6px;font-size:14px;color:var(--muted);cursor:pointer;user-select:none}
+.toggle input{accent-color:var(--accent);width:18px;height:18px}
+
+.btn{border:0;border-radius:10px;padding:10px 18px;background:var(--accent);color:var(--surface);font-weight:700;cursor:pointer}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.ghost{background:none;border:0;color:var(--muted);cursor:pointer;font-size:13px;padding:2px 6px;border-radius:6px}
+.ghost:hover{color:var(--ink);background:var(--accent-soft)}
+
+/* add form */
+details.add{background:var(--surface);border:1.5px solid var(--line);border-radius:14px}
+details.add summary{cursor:pointer;padding:14px 18px;font-family:var(--display);font-weight:700;font-size:17px;list-style:none;display:flex;justify-content:space-between;align-items:center}
+details.add summary::-webkit-details-marker{display:none}
+details.add summary::after{content:"＋";color:var(--accent);font-size:20px}
+details.add[open] summary::after{content:"－"}
+form{padding:0 18px 18px;display:grid;grid-template-columns:repeat(6,1fr);gap:12px}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.field label,.field .lab{font-size:13px;font-weight:700;color:var(--muted)}
+.field small{font-size:12px;color:var(--muted)}
+.c6{grid-column:span 6}.c4{grid-column:span 4}.c2{grid-column:span 2}.c3{grid-column:span 3}
+@media (max-width:520px){.c4,.c2,.c3{grid-column:span 6}}
+.seg{display:flex;gap:6px;flex-wrap:wrap}
+.seg label{display:flex}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg span{border:1.5px solid var(--line);border-radius:999px;padding:5px 12px;font-size:14px;cursor:pointer;background:var(--surface)}
+.seg input:checked+span{border-color:var(--accent);background:var(--accent-soft);font-weight:700}
+.seg input:focus-visible+span{outline:2.5px solid var(--accent);outline-offset:2px}
+.formfoot{grid-column:span 6;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.msg{font-size:13px;color:var(--muted)}
+.msg.err{color:var(--lv3)}
+
+/* film cards */
+#list{display:flex;flex-direction:column;gap:16px}
+.film{background:var(--surface);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:12px;border:1.5px solid var(--line)}
+.film.sample{border-style:dashed}
+.filmhead{display:flex;justify-content:space-between;gap:12px;align-items:baseline;flex-wrap:wrap}
+.filmhead h3{font-size:20px}
+.filmhead .yr{font-family:var(--mono);font-size:13px;color:var(--muted);margin-left:6px;font-weight:500}
+.count{font-size:13px;color:var(--muted)}
+.count b{font-family:var(--mono);color:var(--ink)}
+.strip{position:relative;height:26px;background:var(--bg);border-radius:6px}
+.strip i{position:absolute;top:4px;width:6px;height:18px;border-radius:3px;transform:translateX(-50%)}
+.stripaxis{display:flex;justify-content:space-between;font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:-6px}
+.scares{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.scares li{display:grid;grid-template-columns:auto auto 1fr auto;gap:4px 12px;align-items:baseline;padding:9px 0;border-top:1px solid var(--line)}
+.tc{font-family:var(--mono);font-weight:600;font-size:16px;font-variant-numeric:tabular-nums}
+.lv{font-size:12px;font-weight:700;padding:1px 9px;border-radius:999px;white-space:nowrap;color:#1c2a29}
+.lv1{background:var(--lv1)}.lv2{background:var(--lv2)}.lv3{background:var(--lv3)}
+.meta{font-size:13px;color:var(--muted);min-width:0}
+.cue{grid-column:2 / -1;font-size:14px;min-width:0;overflow-wrap:anywhere}
+.cue.hidden{color:var(--muted)}
+.cue button{border:1px dashed var(--line);background:none;border-radius:6px;padding:1px 10px;font-size:13px;color:var(--muted);cursor:pointer}
+.empty{background:var(--surface);border-radius:14px;padding:22px;border:1.5px dashed var(--line);color:var(--muted)}
+.empty h3{color:var(--ink);font-size:18px;margin-bottom:4px}
+.tag{font-size:11px;letter-spacing:.08em;font-weight:700;color:var(--accent)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--muted);align-items:center}
+.legend span{display:flex;gap:6px;align-items:center}
+.legend i{width:10px;height:10px;border-radius:3px;display:inline-block}
+footer{font-size:12px;color:var(--muted)}
+/* now showing: typographic title cards instead of posters */
+.now{display:flex;flex-direction:column;gap:12px}
+.nowhead{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.nowhead h2{font-size:20px}
+.nowhead small{font-size:12px;color:var(--muted)}
+.shelf{display:grid;grid-auto-flow:column;grid-auto-columns:132px;gap:12px;overflow-x:auto;padding-bottom:8px;scroll-snap-type:x proximity}
+.tcard{scroll-snap-align:start;aspect-ratio:2/3;max-width:100%;border:0;border-radius:10px;padding:12px 10px;display:flex;flex-direction:column;justify-content:space-between;text-align:left;cursor:pointer;color:#fff;background:var(--c1);position:relative;overflow:hidden}
+.tcard::before{content:"";position:absolute;inset:auto -30% -20% auto;width:120%;aspect-ratio:1;border-radius:50%;background:var(--c2);opacity:.55}
+.tcard>*{position:relative}
+.tcard .rel{font-family:var(--mono);font-size:11px;opacity:.85;letter-spacing:.04em}
+.tcard .ttl{font-family:var(--display);font-weight:700;font-size:16px;line-height:1.3;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden;text-shadow:0 1px 2px rgba(0,0,0,.25)}
+.tcard .badge{align-self:flex-start;font-size:11px;font-weight:700;background:rgba(255,255,255,.9);color:#1c2a29;border-radius:999px;padding:1px 8px}
+.tcard .badge.none{background:rgba(0,0,0,.25);color:#fff}
+.tcard[aria-pressed="true"]{outline:3px solid var(--accent);outline-offset:2px}
+.combo{position:relative}
+.results{position:absolute;z-index:5;top:66px;left:0;right:0;margin:0;padding:4px;list-style:none;background:var(--surface);border:1.5px solid var(--line);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.12);max-height:280px;overflow-y:auto}
+.results li{padding:8px 10px;border-radius:7px;cursor:pointer;display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.results li[aria-selected="true"],.results li:hover{background:var(--accent-soft)}
+.results li .y{font-family:var(--mono);font-size:12px;color:var(--muted);white-space:nowrap}
+.results li .now{font-size:11px;font-weight:700;color:var(--accent);margin-left:6px}
+.results li.miss{display:block;color:var(--muted);font-size:13px;cursor:default;background:none}
+.results li.miss button{margin-top:4px}
+.yearval{font-family:var(--mono);font-size:16px;font-weight:600;padding:9px 0}
+.picked{border-color:var(--accent)!important}
+.reqbox{background:var(--bg);border-radius:10px;padding:12px}
+.reqbox p{margin:0 0 8px;font-size:13px;color:var(--muted)}
+.reqrow{display:flex;gap:8px;flex-wrap:wrap}
+.reqrow input{flex:1 1 140px;min-width:0;background:var(--surface);border:1.5px solid var(--line);border-radius:10px;padding:8px 10px}
+.reqrow #r-year{flex:0 1 110px}
+.btn.sub{padding:8px 14px}
+.tc .approx{font-size:12px;color:var(--muted);font-family:var(--body);font-weight:500;margin-right:3px}
+.acts{display:flex;gap:2px;flex-wrap:wrap;justify-content:flex-end}
+.ghost.warn{color:var(--lv3)}
+.flagnote{grid-column:2 / -1;font-size:12px;color:var(--lv3)}
+.mod{background:var(--surface);border:1.5px solid var(--lv3);border-radius:14px;padding:16px 18px;display:flex;flex-direction:column;gap:10px}
+.mod h2{font-size:18px}
+.mod p{margin:0;font-size:13px;color:var(--muted)}
+.mod ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.mod li{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline;justify-content:space-between;padding:8px 0;border-top:1px solid var(--line);font-size:14px}
+.mod li .what{min-width:0;flex:1 1 220px;overflow-wrap:anywhere}
+.mod li .what small{display:block;color:var(--muted);font-size:12px}
+.mod h3{font-size:15px;margin-top:6px}
+.banned{background:var(--surface);border:1.5px solid var(--line);border-radius:14px;padding:14px 18px;color:var(--muted);font-size:14px}
+.mutednote{font-size:13px;color:var(--muted);display:flex;gap:6px;align-items:center}
+.filterchip{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--muted)}
+@media (prefers-reduced-motion:no-preference){.tcard{transition:transform .15s}.tcard:hover{transform:translateY(-3px)}}
+@media (prefers-reduced-motion:no-preference){.film{transition:border-color .2s}.film:hover{border-color:var(--accent)}}
+
+.authbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;font-size:13px;color:var(--muted)}
+.loginbox{background:var(--surface);border:1.5px solid var(--line);border-radius:14px;padding:16px 18px;display:flex;flex-direction:column;gap:10px}
+.loginbox p{margin:0;font-size:14px}
+
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>ジャンプスケア予報</h1>
+    <p>映画の「急に驚かされる場面」がいつ来るかを共有するサイトです。心の準備をしてから観たい人のために。ネタバレは、無しで。みんなの優しさでこのサイトはできています。</p>
+    <ul class="rules">
+      <li>何が出るかは書かない</li>
+      <li>誰が・どうなるかも書かない</li>
+      <li>直前の目印だけを書く</li>
+    </ul>
+  </header>
+
+  <div class="authbar" id="authbar">
+    <span id="authstate">読み込み中…</span>
+    <span class="authbtns" id="authbtns"></span>
+  </div>
+  <div class="loginbox" id="loginbox" hidden>
+    <p>投稿・通報にはログインが必要です。見るだけならログインは不要です。</p>
+    <div class="reqrow">
+      <button class="btn" type="button" id="login-google">Googleでログイン</button>
+    </div>
+    <div class="reqrow">
+      <input id="login-email" type="email" placeholder="メールアドレス" aria-label="メールアドレス" autocomplete="email">
+      <button class="btn sub" type="button" id="login-mail">ログイン用リンクを送る</button>
+    </div>
+    <span class="msg" id="login-msg" role="status"></span>
+  </div>
+
+  <section class="now" aria-label="公開中の作品">
+    <div class="nowhead"><h2>いま公開中</h2><small id="nowmeta">読み込み中…</small></div>
+    <div class="shelf" id="shelf"></div>
+    <div class="filterchip" id="chip" hidden><span id="chiptext"></span><button class="ghost" type="button" id="clearq">絞り込みを解除</button></div>
+  </section>
+
+  <div class="banned" id="bannedbox" hidden>このアカウントは利用ルールに反する投稿があったため、投稿できなくなっています。</div>
+
+  <details class="add" id="addbox">
+    <summary>場面を投稿する</summary>
+    <form id="form" novalidate>
+      <div class="field c4 combo"><label for="f-movie">作品名</label>
+        <input id="f-movie" required maxlength="80" placeholder="作品名で検索" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="f-results" aria-autocomplete="list">
+        <ul class="results" id="f-results" role="listbox" hidden></ul>
+        <small id="f-movie-note">登録済みの作品から選んでください</small></div>
+      <div class="field c2" id="yearfield" hidden><span class="lab">公開年</span><span id="f-year" class="yearval"></span></div>
+      <div class="field c6 reqbox" id="reqbox" hidden>
+        <p>見つからない作品は追加をリクエストしてください。実在を確認してから登録します。</p>
+        <div class="reqrow"><input id="r-title" maxlength="80" placeholder="作品名" aria-label="リクエストする作品名"><input id="r-year" maxlength="4" inputmode="numeric" placeholder="公開年(任意)" aria-label="公開年"><button class="btn sub" type="button" id="r-send">リクエスト</button></div>
+        <span class="msg" id="r-msg" role="status"></span>
+      </div>
+      <div class="field c3"><label for="f-time">時刻</label><input id="f-time" required placeholder="1:02:15" inputmode="numeric"><small>本編開始（配給会社のロゴ）からの時間</small></div>
+      <div class="field c3"><span class="lab">時刻の正確さ</span>
+        <div class="seg">
+          <label><input type="radio" name="acc" value="exact" id="f-acc1"><span>正確（配信で確認）</span></label>
+          <label><input type="radio" name="acc" value="approx" id="f-acc2" checked><span>だいたい</span></label>
+        </div><small>映画館で観た場合は、だいたいの時刻でかまいません。</small></div>
+      <div class="field c4"><span class="lab">強さ</span>
+        <div class="seg" role="radiogroup" aria-label="強さ">
+          <label><input type="radio" name="lv" value="1" id="f-lv1"><span>ちょっと</span></label>
+          <label><input type="radio" name="lv" value="2" id="f-lv2" checked><span>けっこう</span></label>
+          <label><input type="radio" name="lv" value="3" id="f-lv3"><span>かなり</span></label>
+        </div></div>
+      <div class="field c6"><span class="lab">種類</span>
+        <div class="seg">
+          <label><input type="checkbox" name="kind" value="大きな音" id="f-k1"><span>大きな音</span></label>
+          <label><input type="checkbox" name="kind" value="急に映る" id="f-k2"><span>急に映る</span></label>
+          <label><input type="checkbox" name="kind" value="肩すかし" id="f-k3"><span>肩すかし（猫など）</span></label>
+          <label><input type="checkbox" name="kind" value="連続" id="f-k4"><span>連続で来る</span></label>
+        </div></div>
+      <div class="field c6"><label for="f-cue">直前の目印（ネタバレなしで）</label><textarea id="f-cue" rows="2" maxlength="120" placeholder="例：電話が鳴って、主人公が廊下に出たあと"></textarea><small>任意。誰が出るか・何が起きるかは書かないでください。</small></div>
+      <div class="formfoot"><button class="btn" id="submit" type="submit">投稿する</button><span class="msg" id="msg" role="status"></span></div>
+    </form>
+  </details>
+
+  <div class="tools">
+    <input type="search" id="q" placeholder="作品名で探す" aria-label="作品名で探す">
+    <label class="toggle"><input type="checkbox" id="showcue"> 目印を最初から表示</label>
+  </div>
+  <div class="legend"><span><i style="background:var(--lv1)"></i>ちょっと</span><span><i style="background:var(--lv2)"></i>けっこう</span><span><i style="background:var(--lv3)"></i>かなり</span><span>時刻は配信版・劇場版で数十秒ずれることがあります</span></div>
+
+  <div class="mutednote" id="mutednote" hidden><span id="mutedtext"></span><button class="ghost" type="button" id="unmute">すべて元に戻す</button></div>
+
+  <section class="mod" id="modpanel" hidden aria-label="管理">
+    <h2>管理（あなたにだけ表示）</h2>
+    <p>通報された投稿です。3件以上の通報があった投稿は、確認するまで全員に非表示になります。BANしたアカウントは投稿できなくなり、過去の投稿も非表示になります。</p>
+    <ul id="modlist"></ul>
+    <h3>作品の追加リクエスト</h3>
+    <ul id="reqlist"></ul>
+    <h3>BAN中のアカウント</h3>
+    <ul id="banlist"></ul>
+  </section>
+
+  <section id="list" aria-live="polite"></section>
+
+  <footer>ネタバレだと思う投稿は「通報」してください。「この人を非表示」で、その人の投稿をあなたの画面から消せます。自分の投稿は削除できます。時刻は投稿者の視聴環境によるものです。「いま公開中」の作品リストは毎週金曜に更新します。</footer>
+</div>
+
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+(function(){
+  const SUPABASE_URL="https://pzabrkbtwuzrzhmvksri.supabase.co";
+  const SUPABASE_KEY="sb_publishable_xk7ewXc84jJh8Ej6kBzMYA_7GLAUpOo";
+  const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+
+  const $=s=>document.querySelector(s);
+  const LV={1:"ちょっと",2:"けっこう",3:"かなり"};
+  let me=null, isAdmin=false, banned=false;
+  let films=[], filmById=new Map(), rows=[], myReports=new Set(), muted=new Set(), bans=[], requests=[];
+  let loaded=false, revealed=new Set();
+  try{ $("#showcue").checked = localStorage.getItem("js-showcue")==="1"; }catch(e){}
+
+  const SAMPLE=[{movie:"（サンプル）夜の団地",year:"2099",t:754,lv:1,kinds:["肩すかし"],cue:"冷蔵庫を開ける場面",approx:true},{movie:"（サンプル）夜の団地",year:"2099",t:2950,lv:3,kinds:["大きな音","急に映る"],cue:"停電して懐中電灯をつけた直後",approx:true}];
+
+  function fmt(s){s=Math.max(0,Math.round(s));const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;const p=n=>String(n).padStart(2,"0");return h?`${h}:${p(m)}:${p(x)}`:`${m}:${p(x)}`}
+  function parse(str){str=(str||"").trim().replace(/[：]/g,":").replace(/[０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-65248));
+    if(/^\d+$/.test(str)) return +str*60;
+    const p=str.split(":"); if(p.length<2||p.length>3||p.some(v=>!/^\d+$/.test(v))) return null;
+    const n=p.map(Number); if(n[n.length-1]>59) return null; if(p.length===3&&n[1]>59) return null;
+    return p.length===3? n[0]*3600+n[1]*60+n[2] : n[0]*60+n[1]}
+  function el(tag,cls,txt){const e=document.createElement(tag);if(cls)e.className=cls;if(txt!=null)e.textContent=txt;return e}
+  const norm=s=>(s||"").normalize("NFKC").toLowerCase().replace(/[\s・／/：:〜~「」『』!！?？、,.。“”"-]/g,"");
+  function hue(s){let h=0;for(const ch of s)h=(h*31+ch.codePointAt(0))%360;return h}
+  const pending=new Map();
+  function twoTap(btn,id,label,confirmLabel){
+    if(pending.get(btn)!==id){pending.set(btn,id);btn.textContent=confirmLabel;setTimeout(()=>{if(pending.get(btn)===id){pending.delete(btn);btn.textContent=label}},4000);return false}
+    pending.delete(btn);return true}
+  const errText=e=>(e&&e.message)||"うまくいきませんでした。少し待ってからもう一度お試しください。";
+
+  /* ---------- data ---------- */
+  async function loadFilms(){
+    const {data,error}=await sb.from("films").select("id,title,year,release_date,now_showing").order("title");
+    if(!error){films=data||[];filmById=new Map(films.map(f=>[f.id,f]))}
+  }
+  async function loadScares(){
+    const {data,error}=await sb.from("scares").select("id,film_id,t,approx,lv,kinds,cue,author,hidden,report_count,created_at").order("created_at",{ascending:false}).limit(3000);
+    if(!error){rows=(data||[]).map(r=>{const f=filmById.get(r.film_id)||{};return {...r,movie:f.title||"",year:f.year?String(f.year):""}})}
+    loaded=true;
+  }
+  async function loadMine(){
+    myReports=new Set(); muted=new Set(); isAdmin=false; banned=false;
+    if(!me) return;
+    const [r,m,a,b]=await Promise.all([
+      sb.from("reports").select("scare_id").eq("reporter",me),
+      sb.from("mutes").select("muted_user_id"),
+      sb.rpc("is_admin"), sb.rpc("is_banned")]);
+    (r.data||[]).forEach(x=>myReports.add(x.scare_id));
+    (m.data||[]).forEach(x=>muted.add(x.muted_user_id));
+    isAdmin=!!a.data; banned=!!b.data;
+    if(isAdmin) await loadAdmin();
+  }
+  async function loadAdmin(){
+    const [b,q]=await Promise.all([sb.from("bans").select("user_id,created_at").order("created_at"),sb.from("film_requests").select("id,title,year,created_at").order("created_at")]);
+    bans=b.data||[]; requests=q.data||[];
+  }
+  async function refresh(){await loadScares();render()}
+
+  function visible(){return rows.filter(r=>!muted.has(r.author)&&(!r.hidden||r.author===me))}
+
+  /* ---------- auth ---------- */
+  function renderAuth(){
+    const st=$("#authstate"), bt=$("#authbtns"); bt.replaceChildren();
+    if(me){
+      st.textContent="ログイン中"+(isAdmin?"（管理者）":"");
+      const o=el("button","ghost","ログアウト");o.type="button";o.onclick=async()=>{await sb.auth.signOut()};bt.append(o);
+      $("#loginbox").hidden=true;
+    }else{
+      st.textContent="ログインしていません（見るだけならそのままで大丈夫です）";
+      const i=el("button","btn sub","ログイン");i.type="button";i.onclick=()=>{$("#loginbox").hidden=!$("#loginbox").hidden};bt.append(i);
+    }
+    $("#bannedbox").hidden=!banned;
+    $("#addbox").hidden=banned;
+  }
+  $("#login-google").addEventListener("click",async()=>{
+    const {error}=await sb.auth.signInWithOAuth({provider:"google",options:{redirectTo:location.origin+location.pathname}});
+    if(error){$("#login-msg").className="msg err";$("#login-msg").textContent="Googleログインは準備中です。メールでのログインをお使いください。"}
+  });
+  $("#login-mail").addEventListener("click",async()=>{
+    const m=$("#login-msg"), email=$("#login-email").value.trim(); m.className="msg";
+    if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){m.className="msg err";m.textContent="メールアドレスを確認してください。";return}
+    $("#login-mail").disabled=true; m.textContent="送信中…";
+    const {error}=await sb.auth.signInWithOtp({email,options:{emailRedirectTo:location.origin+location.pathname}});
+    $("#login-mail").disabled=false;
+    if(error){m.className="msg err";m.textContent=/rate/i.test(error.message)?"送信が混み合っています。少し時間をおいてからお試しください。":"送れませんでした："+error.message}
+    else m.textContent="ログイン用のリンクをメールで送りました。メール内のリンクを開くとログインできます。";
+  });
+  function needLogin(){ $("#loginbox").hidden=false; $("#loginbox").scrollIntoView({block:"center"}) }
+
+  /* ---------- shelf ---------- */
+  function renderShelf(){
+    const shelf=$("#shelf"), meta=$("#nowmeta"); shelf.replaceChildren();
+    const now=films.filter(f=>f.now_showing);
+    if(!now.length){ $(".now").hidden=loaded; meta.textContent="読み込み中…"; return }
+    $(".now").hidden=false; meta.textContent=now.length+"作品";
+    const cnt=new Map(); visible().forEach(r=>cnt.set(r.film_id,(cnt.get(r.film_id)||0)+1));
+    const qn=norm($("#q").value);
+    now.sort((a,b)=>(cnt.get(b.id)||0)-(cnt.get(a.id)||0)||String(b.release_date).localeCompare(String(a.release_date)));
+    now.forEach(f=>{
+      const h=hue(f.title), n=cnt.get(f.id)||0;
+      const b=el("button","tcard"); b.type="button";
+      b.style.setProperty("--c1",`hsl(${h} 34% 30%)`); b.style.setProperty("--c2",`hsl(${(h+48)%360} 42% 44%)`);
+      b.setAttribute("aria-pressed", String(!!qn && qn===norm(f.title)));
+      b.append(el("span","rel",(f.release_date||"").replace(/-/g,".")+" 公開"), el("span","ttl",f.title), el("span","badge"+(n?"":" none"), n? `${n}件の投稿` : "情報まだなし"));
+      b.onclick=()=>{ $("#q").value=f.title; choose(f); render(); $("#list").scrollIntoView({behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"}) };
+      shelf.append(b);
+    });
+  }
+
+  /* ---------- list ---------- */
+  function render(){
+    renderAuth(); renderShelf(); renderMod(); renderMuted();
+    const chipOn=!!$("#q").value.trim(); $("#chip").hidden=!chipOn; if(chipOn) $("#chiptext").textContent="「"+$("#q").value.trim()+"」で絞り込み中";
+    const list=$("#list"); list.replaceChildren();
+    const qn=norm($("#q").value), showAll=$("#showcue").checked;
+    const vis=visible(), groups=new Map();
+    vis.forEach(r=>{if(!groups.has(r.film_id))groups.set(r.film_id,{movie:r.movie,year:r.year,film_id:r.film_id,items:[]});groups.get(r.film_id).items.push(r)});
+    let gs=[...groups.values()].filter(g=>!qn||norm(g.movie).includes(qn));
+    if(!vis.length&&!qn){
+      const e=el("div","empty");
+      e.append(el("h3",null, loaded? "まだ投稿がありません" : "読み込み中…"));
+      e.append(el("p",null,"観た映画のジャンプスケアの時刻を「場面を投稿する」から登録してください。下は表示イメージです（架空の作品）。"));
+      list.append(e); list.append(card({movie:SAMPLE[0].movie,year:SAMPLE[0].year,items:SAMPLE},true,true)); return;
+    }
+    if(!gs.length){const e=el("div","empty");e.append(el("h3",null,"まだ投稿がありません"));e.append(el("p",null,"「"+$("#q").value.trim()+"」の情報はまだありません。観た方は「場面を投稿する」から最初の投稿をお願いします。"));
+      const b=el("button","btn","この作品の場面を投稿する");b.type="button";b.style.marginTop="8px";b.onclick=()=>{if(!me){needLogin();return}$("#addbox").open=true;$("#f-time").focus()};if(!banned)e.append(b);list.append(e);return}
+    gs.forEach(g=>list.append(card(g,showAll,false)));
+  }
+
+  function card(g,showAll,sample){
+    const items=[...g.items].sort((a,b)=>a.t-b.t);
+    const c=el("article","film"+(sample?" sample":""));
+    const h=el("div","filmhead");
+    const h3=el("h3",null,g.movie); if(g.year){h3.append(el("span","yr",g.year))}
+    if(sample){c.append(el("div","tag","表示イメージ"))}
+    const cnt=el("div","count"); const big=items.filter(i=>i.lv==3).length;
+    cnt.append(el("b",null,String(items.length)),document.createTextNode(" 件"+(big?"・かなり ":"")),...(big?[el("b",null,String(big)),document.createTextNode(" 件")]:[]));
+    h.append(h3,cnt); c.append(h);
+    const maxT=Math.max(...items.map(i=>i.t)); const end=Math.max(5400,Math.ceil((maxT+300)/1800)*1800);
+    const strip=el("div","strip"); strip.setAttribute("aria-hidden","true");
+    items.forEach(i=>{const m=el("i");m.style.left=Math.min(98.5,Math.max(1.5,i.t/end*100))+"%";m.style.background=`var(--lv${i.lv})`;strip.append(m)});
+    const axis=el("div","stripaxis"); axis.setAttribute("aria-hidden","true"); axis.append(el("span",null,"0:00"),el("span",null,fmt(end/2)),el("span",null,fmt(end)));
+    c.append(strip,axis);
+    const ul=el("ul","scares");
+    items.forEach(i=>{
+      const li=el("li");
+      const tc=el("span","tc"); if(i.approx){tc.append(el("span","approx","約"))} tc.append(document.createTextNode(fmt(i.t)));
+      li.append(tc, el("span","lv lv"+i.lv,LV[i.lv]||""), el("span","meta",(i.kinds||[]).join("・")));
+      const right=el("span","acts");
+      if(!sample){
+        if(me&&(i.author===me||isAdmin)){const d=el("button","ghost","削除");d.type="button";d.onclick=()=>delScare(i,d);right.append(d)}
+        if(i.author!==me){
+          const mine=myReports.has(i.id);
+          const r=el("button","ghost warn",mine?"通報済み":"通報");r.type="button";r.disabled=mine;if(!mine)r.onclick=()=>report(i,r);
+          const m=el("button","ghost","この人を非表示");m.type="button";m.onclick=()=>mute(i.author,m);
+          right.append(r,m);
+        }
+      }
+      li.append(right);
+      if(!sample&&i.author===me&&i.hidden){li.append(el("div","flagnote","この投稿は通報が多いため、ほかの人には表示されていません。"))}
+      if(i.cue){
+        const cue=el("div","cue"), rid=i.id||("s"+i.t);
+        if(showAll||revealed.has(rid)){cue.textContent="目印："+i.cue}
+        else{cue.classList.add("hidden");const b=el("button",null,"直前の目印を見る");b.type="button";b.onclick=()=>{revealed.add(rid);cue.classList.remove("hidden");cue.textContent="目印："+i.cue};cue.append(b)}
+        li.append(cue);
+      }
+      ul.append(li);
+    });
+    c.append(ul);
+    return c;
+  }
+
+  /* ---------- actions ---------- */
+  async function delScare(i,btn){
+    if(!twoTap(btn,i.id,"削除","本当に削除"))return; btn.disabled=true;
+    const {error}=await sb.from("scares").delete().eq("id",i.id);
+    if(error){btn.disabled=false;btn.textContent="削除できませんでした";return}
+    await refresh();
+  }
+  async function report(i,btn){
+    if(!me){needLogin();return}
+    if(!twoTap(btn,i.id,"通報","ネタバレとして通報する"))return; btn.disabled=true;
+    const {error}=await sb.from("reports").insert({scare_id:i.id});
+    if(error&&error.code!=="23505"){btn.disabled=false;btn.textContent="通報できませんでした";return}
+    myReports.add(i.id); btn.textContent="通報済み";
+  }
+  async function mute(author,btn){
+    if(!me){needLogin();return}
+    if(!twoTap(btn,author,"この人を非表示","この人の投稿をすべて隠す"))return;
+    muted.add(author); render();
+    await sb.from("mutes").insert({muted_user_id:author});
+  }
+  function renderMuted(){const n=muted.size; $("#mutednote").hidden=!n; if(n) $("#mutedtext").textContent=`${n}人の投稿を非表示にしています。`}
+  $("#unmute").addEventListener("click",async()=>{await sb.from("mutes").delete().eq("user_id",me);muted=new Set();render()});
+
+  /* ---------- admin ---------- */
+  function renderMod(){
+    const panel=$("#modpanel"); panel.hidden=!isAdmin; if(!isAdmin)return;
+    const ul=$("#modlist"); ul.replaceChildren();
+    const banSet=new Set(bans.map(b=>b.user_id));
+    const flagged=rows.filter(r=>r.report_count>0||r.hidden).sort((a,b)=>b.report_count-a.report_count);
+    if(!flagged.length) ul.append(el("li",null,"通報された投稿はありません。"));
+    flagged.forEach(r=>{
+      const li=el("li"), w=el("span","what");
+      w.append(document.createTextNode(`${r.movie}　${r.approx?"約":""}${fmt(r.t)}　目印：${r.cue||"（なし）"}`));
+      w.append(el("small",null,`通報 ${r.report_count}件${r.hidden?"・全員に非表示中":""}${banSet.has(r.author)?"・BAN済みのアカウント":""}`));
+      const a=el("span","acts");
+      const d=el("button","ghost warn","投稿を削除");d.type="button";d.onclick=()=>delScare(r,d);
+      const ok=el("button","ghost","問題なし（表示に戻す）");ok.type="button";
+      ok.onclick=async()=>{ok.disabled=true;await sb.from("reports").delete().eq("scare_id",r.id);const {error}=await sb.from("scares").update({hidden:false,report_count:0}).eq("id",r.id);if(error){ok.disabled=false;ok.textContent="失敗";return}await refresh()};
+      a.append(d,ok);
+      if(r.author!==me&&!banSet.has(r.author)){
+        const ban=el("button","ghost warn","このアカウントをBAN");ban.type="button";
+        ban.onclick=async()=>{if(!twoTap(ban,r.author,"このアカウントをBAN","BANする（投稿禁止）"))return;ban.disabled=true;const {error}=await sb.from("bans").insert({user_id:r.author,reason:"ネタバレ投稿"});if(error){ban.disabled=false;ban.textContent="失敗";return}await loadAdmin();await refresh()};
+        a.append(ban);
+      }
+      li.append(w,a); ul.append(li);
+    });
+    const rl=$("#reqlist"); rl.replaceChildren();
+    if(!requests.length) rl.append(el("li",null,"リクエストはありません。"));
+    requests.forEach(q=>{
+      const li=el("li"); li.append(el("span","what",`${q.title}${q.year?"（"+q.year+"）":""}`));
+      const a=el("span","acts");
+      const ok=el("button","ghost","登録する");ok.type="button";
+      ok.onclick=async()=>{ok.disabled=true;const {error}=await sb.from("films").insert({title:q.title,year:q.year});if(error&&error.code!=="23505"){ok.disabled=false;ok.textContent="失敗";return}await sb.from("film_requests").delete().eq("id",q.id);await loadFilms();await loadAdmin();render()};
+      const ng=el("button","ghost warn","却下");ng.type="button";
+      ng.onclick=async()=>{ng.disabled=true;await sb.from("film_requests").delete().eq("id",q.id);await loadAdmin();render()};
+      a.append(ok,ng); li.append(a); rl.append(li);
+    });
+    const bl=$("#banlist"); bl.replaceChildren();
+    if(!bans.length) bl.append(el("li",null,"BAN中のアカウントはありません。"));
+    bans.forEach((b,idx)=>{
+      const li=el("li"); li.append(el("span","what",`アカウント ${idx+1}（投稿 ${rows.filter(r=>r.author===b.user_id).length}件・${new Date(b.created_at).toLocaleDateString("ja-JP")}）`));
+      const un=el("button","ghost","BANを解除");un.type="button";
+      un.onclick=async()=>{un.disabled=true;await sb.from("bans").delete().eq("user_id",b.user_id);await loadAdmin();await refresh()};
+      li.append(un); bl.append(li);
+    });
+  }
+
+  /* ---------- film search ---------- */
+  let selected=null, hits=[], active=-1;
+  function choose(f){
+    selected=f;
+    $("#f-movie").value=f.title; $("#f-year").textContent=f.year||"—"; $("#yearfield").hidden=false;
+    $("#f-movie").classList.add("picked"); $("#f-movie-note").textContent="選択済み：「"+f.title+"」";
+    closeResults(); $("#reqbox").hidden=true;
+  }
+  function closeResults(){$("#f-results").hidden=true;$("#f-movie").setAttribute("aria-expanded","false");active=-1}
+  function showResults(){
+    const q=norm($("#f-movie").value), ul=$("#f-results"); ul.replaceChildren();
+    if(!q){closeResults();return}
+    hits=films.filter(f=>norm(f.title).includes(q)).sort((a,b)=>(norm(a.title).startsWith(q)?0:1)-(norm(b.title).startsWith(q)?0:1)||(b.now_showing-a.now_showing)).slice(0,12);
+    hits.forEach((f,i)=>{
+      const li=el("li"); li.id="opt"+i; li.setAttribute("role","option"); li.setAttribute("aria-selected",String(i===active));
+      const name=el("span",null,f.title); if(f.now_showing) name.append(el("span","now","公開中"));
+      li.append(name, el("span","y",f.year?String(f.year):"")); li.onmousedown=e=>{e.preventDefault();choose(f)}; ul.append(li);
+    });
+    const miss=el("li","miss");
+    miss.append(document.createTextNode(hits.length? "この中にない場合：" : "「"+$("#f-movie").value.trim()+"」は登録されていません。"));
+    const rb=el("button","ghost","作品の追加をリクエスト"); rb.type="button";
+    rb.onmousedown=e=>{e.preventDefault();openReq()}; miss.append(rb); ul.append(miss);
+    ul.hidden=false; $("#f-movie").setAttribute("aria-expanded","true");
+  }
+  function openReq(){closeResults();$("#reqbox").hidden=false;$("#r-title").value=$("#f-movie").value.trim();$("#r-msg").textContent="";$("#r-title").focus()}
+  $("#f-movie").addEventListener("input",()=>{
+    if(selected){selected=null;$("#f-year").textContent="";$("#yearfield").hidden=true;$("#f-movie").classList.remove("picked");$("#f-movie-note").textContent="登録済みの作品から選んでください"}
+    active=-1; showResults();
+  });
+  $("#f-movie").addEventListener("keydown",e=>{
+    if($("#f-results").hidden) return;
+    if(e.key==="ArrowDown"||e.key==="ArrowUp"){e.preventDefault();active=hits.length?(active+(e.key==="ArrowDown"?1:-1)+hits.length)%hits.length:-1;
+      [...$("#f-results").querySelectorAll("li[role=option]")].forEach((li,i)=>li.setAttribute("aria-selected",String(i===active)));
+      $("#f-movie").setAttribute("aria-activedescendant",active>=0?"opt"+active:"")}
+    else if(e.key==="Enter"&&active>=0){e.preventDefault();choose(hits[active])}
+    else if(e.key==="Escape"){closeResults()}
+  });
+  $("#f-movie").addEventListener("blur",()=>setTimeout(closeResults,120));
+  $("#f-movie").addEventListener("focus",()=>{if(!selected&&$("#f-movie").value.trim())showResults()});
+
+  $("#r-send").addEventListener("click",async()=>{
+    const m=$("#r-msg"); m.className="msg";
+    if(!me){needLogin();return}
+    const title=$("#r-title").value.trim(), year=$("#r-year").value.trim().replace(/[０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-65248));
+    if(!title){m.className="msg err";m.textContent="作品名を入れてください。";return}
+    if(year&&!/^\d{4}$/.test(year)){m.className="msg err";m.textContent="公開年は4桁の数字で入れてください。";return}
+    $("#r-send").disabled=true; m.textContent="送信中…";
+    const {error}=await sb.from("film_requests").insert({title,year:year?+year:null});
+    $("#r-send").disabled=false;
+    if(error){m.className="msg err";m.textContent=errText(error);return}
+    m.textContent="リクエストしました。実在を確認できたら、検索に出るようになります。"; $("#r-year").value="";
+  });
+
+  /* ---------- post ---------- */
+  $("#form").addEventListener("submit",async ev=>{
+    ev.preventDefault();
+    const msg=$("#msg"); msg.className="msg";
+    if(!me){needLogin();return}
+    if(banned){msg.className="msg err";msg.textContent="このアカウントは投稿できません。";return}
+    if(!selected){msg.className="msg err";msg.textContent="作品名を検索して、候補から選んでください。見つからない場合は追加をリクエストできます。";$("#f-movie").focus();return}
+    const t=parse($("#f-time").value), cue=$("#f-cue").value.trim();
+    const lv=+(document.querySelector("input[name=lv]:checked")||{}).value||2;
+    const kinds=[...document.querySelectorAll("input[name=kind]:checked")].map(x=>x.value);
+    const approx=(document.querySelector("input[name=acc]:checked")||{}).value!=="exact";
+    if(t==null||t>6*3600){msg.className="msg err";msg.textContent="時刻は 1:02:15 や 45:30 の形で入れてください。";$("#f-time").focus();return}
+    const b=$("#submit"); b.disabled=true; msg.textContent="投稿中…";
+    const {error}=await sb.from("scares").insert({film_id:selected.id,t,approx,lv,kinds,cue});
+    b.disabled=false;
+    if(error){msg.className="msg err";msg.textContent=errText(error);return}
+    msg.textContent="投稿しました。"; $("#f-time").value=""; $("#f-cue").value="";
+    document.querySelectorAll("input[name=kind]").forEach(x=>x.checked=false);
+    await refresh();
+  });
+
+  $("#q").addEventListener("input",render);
+  $("#clearq").addEventListener("click",()=>{$("#q").value="";render()});
+  $("#showcue").addEventListener("change",()=>{try{localStorage.setItem("js-showcue",$("#showcue").checked?"1":"0")}catch(e){};render()});
+
+  /* ---------- boot ---------- */
+  render();
+  sb.auth.onAuthStateChange(async(_ev,session)=>{
+    const id=session&&session.user?session.user.id:null;
+    if(id===me&&loaded) return;
+    me=id; await loadMine(); await refresh();
+  });
+  (async()=>{
+    const {data}=await sb.auth.getSession(); me=data.session?data.session.user.id:null;
+    await loadFilms(); await loadMine(); await refresh();
+  })();
+})();
+
+</script>
+</body>
+</html>
