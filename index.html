@@ -174,7 +174,7 @@ footer{font-size:12px;color:var(--muted)}
   </div>
   <div class="loginbox" id="loginbox" hidden>
     <p>投稿・通報にはログインが必要です。見るだけならログインは不要です。</p>
-    <div class="reqrow">
+    <div class="reqrow" id="google-row" hidden>
       <button class="btn" type="button" id="login-google">Googleでログイン</button>
     </div>
     <div class="reqrow">
@@ -338,7 +338,7 @@ footer{font-size:12px;color:var(--muted)}
     $("#login-mail").disabled=true; m.textContent="送信中…";
     const {error}=await sb.auth.signInWithOtp({email,options:{emailRedirectTo:location.origin+location.pathname}});
     $("#login-mail").disabled=false;
-    if(error){m.className="msg err";m.textContent=/rate/i.test(error.message)?"送信が混み合っています。少し時間をおいてからお試しください。":"送れませんでした："+error.message}
+    if(error){m.className="msg err";m.textContent=/rate/i.test(error.message)?"送信が混み合っています。少し時間をおいてからお試しください。":/not authorized/i.test(error.message)?"ただいまメールでの新規登録を準備中です。もうしばらくお待ちください。":"送れませんでした："+error.message}
     else m.textContent="ログイン用のリンクをメールで送りました。メール内のリンクを開くとログインできます。";
   });
   function needLogin(){ $("#loginbox").hidden=false; $("#loginbox").scrollIntoView({block:"center"}) }
