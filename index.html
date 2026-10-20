@@ -174,12 +174,9 @@ footer{font-size:12px;color:var(--muted)}
   </div>
   <div class="loginbox" id="loginbox" hidden>
     <p>投稿・通報にはログインが必要です。見るだけならログインは不要です。</p>
+    <p id="login-soon">ログイン機能はただいま準備中です。もうしばらくお待ちください。</p>
     <div class="reqrow" id="google-row" hidden>
       <button class="btn" type="button" id="login-google">Googleでログイン</button>
-    </div>
-    <div class="reqrow">
-      <input id="login-email" type="email" placeholder="メールアドレス" aria-label="メールアドレス" autocomplete="email">
-      <button class="btn sub" type="button" id="login-mail">ログイン用リンクを送る</button>
     </div>
     <span class="msg" id="login-msg" role="status"></span>
   </div>
@@ -259,6 +256,9 @@ footer{font-size:12px;color:var(--muted)}
   const SUPABASE_URL="https://pzabrkbtwuzrzhmvksri.supabase.co";
   const SUPABASE_KEY="sb_publishable_xk7ewXc84jJh8Ej6kBzMYA_7GLAUpOo";
   const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+  const GOOGLE_READY=false; // Googleログインの設定が終わったら true にする
+  document.getElementById("google-row").hidden=!GOOGLE_READY;
+  document.getElementById("login-soon").hidden=GOOGLE_READY;
 
   const $=s=>document.querySelector(s);
   const LV={1:"ちょっと",2:"けっこう",3:"かなり"};
@@ -331,15 +331,6 @@ footer{font-size:12px;color:var(--muted)}
   $("#login-google").addEventListener("click",async()=>{
     const {error}=await sb.auth.signInWithOAuth({provider:"google",options:{redirectTo:location.origin+location.pathname}});
     if(error){$("#login-msg").className="msg err";$("#login-msg").textContent="Googleログインは準備中です。メールでのログインをお使いください。"}
-  });
-  $("#login-mail").addEventListener("click",async()=>{
-    const m=$("#login-msg"), email=$("#login-email").value.trim(); m.className="msg";
-    if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){m.className="msg err";m.textContent="メールアドレスを確認してください。";return}
-    $("#login-mail").disabled=true; m.textContent="送信中…";
-    const {error}=await sb.auth.signInWithOtp({email,options:{emailRedirectTo:location.origin+location.pathname}});
-    $("#login-mail").disabled=false;
-    if(error){m.className="msg err";m.textContent=/rate/i.test(error.message)?"送信が混み合っています。少し時間をおいてからお試しください。":/not authorized/i.test(error.message)?"ただいまメールでの新規登録を準備中です。もうしばらくお待ちください。":"送れませんでした："+error.message}
-    else m.textContent="ログイン用のリンクをメールで送りました。メール内のリンクを開くとログインできます。";
   });
   function needLogin(){ $("#loginbox").hidden=false; $("#loginbox").scrollIntoView({block:"center"}) }
 
