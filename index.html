@@ -146,6 +146,10 @@ footer{font-size:12px;color:var(--muted)}
 @media (prefers-reduced-motion:no-preference){.tcard{transition:transform .15s}.tcard:hover{transform:translateY(-3px)}}
 @media (prefers-reduced-motion:no-preference){.film{transition:border-color .2s}.film:hover{border-color:var(--accent)}}
 
+.pend{font-size:11px;font-weight:700;color:var(--lv2);border:1px solid var(--lv2);border-radius:999px;padding:0 7px;margin-left:6px;white-space:nowrap;font-family:var(--body)}
+.pendedit{display:flex;gap:6px;flex-wrap:wrap;flex:1 1 260px;min-width:0}
+.pendedit input{flex:1 1 140px;min-width:0;background:var(--surface);border:1.5px solid var(--line);border-radius:8px;padding:5px 8px;font:inherit}
+.pendedit input.yr{flex:0 1 80px}
 .authbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;font-size:13px;color:var(--muted)}
 .loginbox{background:var(--surface);border:1.5px solid var(--line);border-radius:14px;padding:16px 18px;display:flex;flex-direction:column;gap:10px}
 .loginbox p{margin:0;font-size:14px}
@@ -197,8 +201,8 @@ footer{font-size:12px;color:var(--muted)}
         <small id="f-movie-note">登録済みの作品から選んでください</small></div>
       <div class="field c2" id="yearfield" hidden><span class="lab">公開年</span><span id="f-year" class="yearval"></span></div>
       <div class="field c6 reqbox" id="reqbox" hidden>
-        <p>見つからない作品は追加をリクエストしてください。実在を確認してから登録します。</p>
-        <div class="reqrow"><input id="r-title" maxlength="80" placeholder="作品名" aria-label="リクエストする作品名"><input id="r-year" maxlength="4" inputmode="numeric" placeholder="公開年(任意)" aria-label="公開年"><button class="btn sub" type="button" id="r-send">リクエスト</button></div>
+        <p>見つからない作品は、ここで仮登録すればすぐに投稿できます。仮登録した作品は「確認中」と表示され、あとで管理者が正式な作品名に整えます。</p>
+        <div class="reqrow"><input id="r-title" maxlength="80" placeholder="作品名" aria-label="仮登録する作品名"><input id="r-year" maxlength="4" inputmode="numeric" placeholder="公開年(任意)" aria-label="公開年"><button class="btn sub" type="button" id="r-send">仮登録して投稿へ進む</button></div>
         <span class="msg" id="r-msg" role="status"></span>
       </div>
       <div class="field c3"><label for="f-time">時刻</label><input id="f-time" required placeholder="1:02:15" inputmode="numeric"><small>本編開始（配給会社のロゴ）からの時間</small></div>
@@ -235,9 +239,9 @@ footer{font-size:12px;color:var(--muted)}
 
   <section class="mod" id="modpanel" hidden aria-label="管理">
     <h2>管理（あなたにだけ表示）</h2>
-    <p>通報された投稿です。3件以上の通報があった投稿は、確認するまで全員に非表示になります。BANしたアカウントは投稿できなくなり、過去の投稿も非表示になります。</p>
+    <p>通報された投稿です。3件以上の通報があった投稿は、確認するまで全員に非表示になります。仮登録された作品は、作品名と公開年を確かめて「確認済みにする」を押してください。架空の作品なら「作品ごと削除」で投稿もまとめて消えます。BANしたアカウントは投稿できなくなり、過去の投稿も非表示になります。</p>
     <ul id="modlist"></ul>
-    <h3>作品の追加リクエスト</h3>
+    <h3>確認待ちの作品（仮登録）</h3>
     <ul id="reqlist"></ul>
     <h3>BAN中のアカウント</h3>
     <ul id="banlist"></ul>
@@ -259,7 +263,7 @@ footer{font-size:12px;color:var(--muted)}
   const $=s=>document.querySelector(s);
   const LV={1:"ちょっと",2:"けっこう",3:"かなり"};
   let me=null, isAdmin=false, banned=false;
-  let films=[], filmById=new Map(), rows=[], myReports=new Set(), muted=new Set(), bans=[], requests=[];
+  let films=[], filmById=new Map(), rows=[], myReports=new Set(), muted=new Set(), bans=[];
   let loaded=false, revealed=new Set();
   try{ $("#showcue").checked = localStorage.getItem("js-showcue")==="1"; }catch(e){}
 
@@ -282,12 +286,12 @@ footer{font-size:12px;color:var(--muted)}
 
   /* ---------- data ---------- */
   async function loadFilms(){
-    const {data,error}=await sb.from("films").select("id,title,year,release_date,now_showing").order("title");
+    const {data,error}=await sb.from("films").select("id,title,year,release_date,now_showing,verified,created_by").order("title");
     if(!error){films=data||[];filmById=new Map(films.map(f=>[f.id,f]))}
   }
   async function loadScares(){
     const {data,error}=await sb.from("scares").select("id,film_id,t,approx,lv,kinds,cue,author,hidden,report_count,created_at").order("created_at",{ascending:false}).limit(3000);
-    if(!error){rows=(data||[]).map(r=>{const f=filmById.get(r.film_id)||{};return {...r,movie:f.title||"",year:f.year?String(f.year):""}})}
+    if(!error){rows=(data||[]).map(r=>{const f=filmById.get(r.film_id)||{};return {...r,movie:f.title||"",year:f.year?String(f.year):"",pending:f.verified===false}})}
     loaded=true;
   }
   async function loadMine(){
@@ -303,8 +307,8 @@ footer{font-size:12px;color:var(--muted)}
     if(isAdmin) await loadAdmin();
   }
   async function loadAdmin(){
-    const [b,q]=await Promise.all([sb.from("bans").select("user_id,created_at").order("created_at"),sb.from("film_requests").select("id,title,year,created_at").order("created_at")]);
-    bans=b.data||[]; requests=q.data||[];
+    const b=await sb.from("bans").select("user_id,created_at").order("created_at");
+    bans=b.data||[];
   }
   async function refresh(){await loadScares();render()}
 
@@ -366,7 +370,7 @@ footer{font-size:12px;color:var(--muted)}
     const list=$("#list"); list.replaceChildren();
     const qn=norm($("#q").value), showAll=$("#showcue").checked;
     const vis=visible(), groups=new Map();
-    vis.forEach(r=>{if(!groups.has(r.film_id))groups.set(r.film_id,{movie:r.movie,year:r.year,film_id:r.film_id,items:[]});groups.get(r.film_id).items.push(r)});
+    vis.forEach(r=>{if(!groups.has(r.film_id))groups.set(r.film_id,{movie:r.movie,year:r.year,pending:r.pending,film_id:r.film_id,items:[]});groups.get(r.film_id).items.push(r)});
     let gs=[...groups.values()].filter(g=>!qn||norm(g.movie).includes(qn));
     if(!vis.length&&!qn){
       const e=el("div","empty");
@@ -383,7 +387,7 @@ footer{font-size:12px;color:var(--muted)}
     const items=[...g.items].sort((a,b)=>a.t-b.t);
     const c=el("article","film"+(sample?" sample":""));
     const h=el("div","filmhead");
-    const h3=el("h3",null,g.movie); if(g.year){h3.append(el("span","yr",g.year))}
+    const h3=el("h3",null,g.movie); if(g.year){h3.append(el("span","yr",g.year))} if(g.pending){h3.append(el("span","pend","作品確認中"))}
     if(sample){c.append(el("div","tag","表示イメージ"))}
     const cnt=el("div","count"); const big=items.filter(i=>i.lv==3).length;
     cnt.append(el("b",null,String(items.length)),document.createTextNode(" 件"+(big?"・かなり ":"")),...(big?[el("b",null,String(big)),document.createTextNode(" 件")]:[]));
@@ -469,15 +473,22 @@ footer{font-size:12px;color:var(--muted)}
       li.append(w,a); ul.append(li);
     });
     const rl=$("#reqlist"); rl.replaceChildren();
-    if(!requests.length) rl.append(el("li",null,"リクエストはありません。"));
-    requests.forEach(q=>{
-      const li=el("li"); li.append(el("span","what",`${q.title}${q.year?"（"+q.year+"）":""}`));
+    const pend=films.filter(f=>f.verified===false);
+    if(!pend.length) rl.append(el("li",null,"確認待ちの作品はありません。"));
+    pend.forEach(f=>{
+      const li=el("li"), box=el("span","pendedit");
+      const ti=el("input");ti.value=f.title;ti.setAttribute("aria-label","作品名");ti.id="pt-"+f.id;
+      const yi=el("input","yr");yi.value=f.year?String(f.year):"";yi.placeholder="公開年";yi.setAttribute("aria-label","公開年");yi.id="py-"+f.id;
+      box.append(ti,yi);
+      const n=rows.filter(r=>r.film_id===f.id).length;
       const a=el("span","acts");
-      const ok=el("button","ghost","登録する");ok.type="button";
-      ok.onclick=async()=>{ok.disabled=true;const {error}=await sb.from("films").insert({title:q.title,year:q.year});if(error&&error.code!=="23505"){ok.disabled=false;ok.textContent="失敗";return}await sb.from("film_requests").delete().eq("id",q.id);await loadFilms();await loadAdmin();render()};
-      const ng=el("button","ghost warn","却下");ng.type="button";
-      ng.onclick=async()=>{ng.disabled=true;await sb.from("film_requests").delete().eq("id",q.id);await loadAdmin();render()};
-      a.append(ok,ng); li.append(a); rl.append(li);
+      const ok=el("button","ghost","確認済みにする");ok.type="button";
+      ok.onclick=async()=>{const t=ti.value.trim(),y=yi.value.trim();if(!t||(y&&!/^\d{4}$/.test(y))){ok.textContent="作品名・公開年を確認";return}
+        ok.disabled=true;const {error}=await sb.from("films").update({title:t,year:y?+y:null,verified:true}).eq("id",f.id);
+        if(error){ok.disabled=false;ok.textContent=error.code==="23505"?"同名の作品があります":"失敗";return}await loadFilms();await refresh()};
+      const ng=el("button","ghost warn",`作品ごと削除（投稿${n}件）`);ng.type="button";
+      ng.onclick=async()=>{if(!twoTap(ng,f.id,`作品ごと削除（投稿${n}件）`,"本当に削除"))return;ng.disabled=true;const {error}=await sb.from("films").delete().eq("id",f.id);if(error){ng.disabled=false;ng.textContent="失敗";return}await loadFilms();await refresh()};
+      a.append(ok,ng); li.append(box,a); rl.append(li);
     });
     const bl=$("#banlist"); bl.replaceChildren();
     if(!bans.length) bl.append(el("li",null,"BAN中のアカウントはありません。"));
@@ -504,12 +515,12 @@ footer{font-size:12px;color:var(--muted)}
     hits=films.filter(f=>norm(f.title).includes(q)).sort((a,b)=>(norm(a.title).startsWith(q)?0:1)-(norm(b.title).startsWith(q)?0:1)||(b.now_showing-a.now_showing)).slice(0,12);
     hits.forEach((f,i)=>{
       const li=el("li"); li.id="opt"+i; li.setAttribute("role","option"); li.setAttribute("aria-selected",String(i===active));
-      const name=el("span",null,f.title); if(f.now_showing) name.append(el("span","now","公開中"));
+      const name=el("span",null,f.title); if(f.now_showing) name.append(el("span","now","公開中")); if(f.verified===false) name.append(el("span","pend","確認中"));
       li.append(name, el("span","y",f.year?String(f.year):"")); li.onmousedown=e=>{e.preventDefault();choose(f)}; ul.append(li);
     });
     const miss=el("li","miss");
     miss.append(document.createTextNode(hits.length? "この中にない場合：" : "「"+$("#f-movie").value.trim()+"」は登録されていません。"));
-    const rb=el("button","ghost","作品の追加をリクエスト"); rb.type="button";
+    const rb=el("button","ghost","作品を仮登録して投稿する"); rb.type="button";
     rb.onmousedown=e=>{e.preventDefault();openReq()}; miss.append(rb); ul.append(miss);
     ul.hidden=false; $("#f-movie").setAttribute("aria-expanded","true");
   }
@@ -532,14 +543,17 @@ footer{font-size:12px;color:var(--muted)}
   $("#r-send").addEventListener("click",async()=>{
     const m=$("#r-msg"); m.className="msg";
     if(!me){needLogin();return}
-    const title=$("#r-title").value.trim(), year=$("#r-year").value.trim().replace(/[０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-65248));
+    const title=$("#r-title").value.trim().replace(/\s+/g," "), year=$("#r-year").value.trim().replace(/[０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-65248));
     if(!title){m.className="msg err";m.textContent="作品名を入れてください。";return}
     if(year&&!/^\d{4}$/.test(year)){m.className="msg err";m.textContent="公開年は4桁の数字で入れてください。";return}
-    $("#r-send").disabled=true; m.textContent="送信中…";
-    const {error}=await sb.from("film_requests").insert({title,year:year?+year:null});
+    const same=films.find(f=>norm(f.title)===norm(title)&&(!year||String(f.year||"")===year));
+    if(same){choose(same);$("#f-time").focus();m.textContent="";return}
+    $("#r-send").disabled=true; m.textContent="登録中…";
+    const {data,error}=await sb.from("films").insert({title,year:year?+year:null,verified:false,created_by:me}).select("id,title,year,release_date,now_showing,verified,created_by").single();
     $("#r-send").disabled=false;
-    if(error){m.className="msg err";m.textContent=errText(error);return}
-    m.textContent="リクエストしました。実在を確認できたら、検索に出るようになります。"; $("#r-year").value="";
+    if(error){m.className="msg err";m.textContent=error.code==="23505"?"同じ作品がすでに登録されています。検索欄から選んでください。":errText(error);return}
+    films.push(data); filmById.set(data.id,data);
+    choose(data); $("#f-time").focus();
   });
 
   /* ---------- post ---------- */
