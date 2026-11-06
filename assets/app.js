@@ -268,8 +268,13 @@
   function choose(f){
     selected=f;
     $("#f-movie").value=f.title; $("#f-year").textContent=f.year||"—"; $("#yearfield").hidden=false;
-    $("#f-movie").classList.add("picked"); $("#f-movie-note").textContent="選択済み：「"+f.title+"」";
-    closeResults(); $("#reqbox").hidden=true;
+    $("#f-movie").classList.add("picked"); $("#f-movie-note").textContent="選択済み：「"+f.title+"」"+(f.verified===false?"（作品の存在を確認中）":"");
+    closeResults(); syncNew();
+  }
+  // 候補から選ばずに入力された作品名は「新しい作品」として扱い、公開年（任意）の欄と説明を出す
+  function syncNew(){
+    const typed=$("#f-movie").value.trim(), isNew=!selected&&!!typed;
+    $("#newyearfield").hidden=!isNew; $("#newnote").hidden=!isNew;
   }
   function closeResults(){$("#f-results").hidden=true;$("#f-movie").setAttribute("aria-expanded","false");active=-1}
   function showResults(){
@@ -282,15 +287,13 @@
       li.append(name, el("span","y",f.year?String(f.year):"")); li.onmousedown=e=>{e.preventDefault();choose(f)}; ul.append(li);
     });
     const miss=el("li","miss");
-    miss.append(document.createTextNode(hits.length? "この中にない場合：" : "「"+$("#f-movie").value.trim()+"」は登録されていません。"));
-    const rb=el("button","ghost","作品を仮登録して投稿する"); rb.type="button";
-    rb.onmousedown=e=>{e.preventDefault();openReq()}; miss.append(rb); ul.append(miss);
+    miss.textContent=hits.length? "この中にない場合は、そのまま入力して投稿できます" : "「"+$("#f-movie").value.trim()+"」はまだ登録されていません。このまま投稿できます";
+    ul.append(miss);
     ul.hidden=false; $("#f-movie").setAttribute("aria-expanded","true");
   }
-  function openReq(){closeResults();$("#reqbox").hidden=false;$("#r-title").value=$("#f-movie").value.trim();$("#r-msg").textContent="";$("#r-title").focus()}
   $("#f-movie").addEventListener("input",()=>{
-    if(selected){selected=null;$("#f-year").textContent="";$("#yearfield").hidden=true;$("#f-movie").classList.remove("picked");$("#f-movie-note").textContent="登録済みの作品から選んでください"}
-    active=-1; showResults();
+    if(selected){selected=null;$("#f-year").textContent="";$("#yearfield").hidden=true;$("#f-movie").classList.remove("picked");$("#f-movie-note").textContent="候補から選んでください。見つからない作品も、そのまま作品名を入れれば投稿できます。"}
+    active=-1; showResults(); syncNew();
   });
   $("#f-movie").addEventListener("keydown",e=>{
     if($("#f-results").hidden) return;
@@ -303,28 +306,30 @@
   $("#f-movie").addEventListener("blur",()=>setTimeout(closeResults,120));
   $("#f-movie").addEventListener("focus",()=>{if(!selected&&$("#f-movie").value.trim())showResults()});
 
-  $("#r-send").addEventListener("click",async()=>{
-    const m=$("#r-msg"); m.className="msg";
-    const title=$("#r-title").value.trim().replace(/\s+/g," "), year=$("#r-year").value.trim().replace(/[０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-65248));
-    if(!title){m.className="msg err";m.textContent="作品名を入れてください。";return}
-    if(year&&!/^\d{4}$/.test(year)){m.className="msg err";m.textContent="公開年は4桁の数字で入れてください。";return}
-    const same=films.find(f=>norm(f.title)===norm(title)&&(!year||String(f.year||"")===year));
-    if(same){choose(same);$("#f-time").focus();m.textContent="";return}
-    $("#r-send").disabled=true; m.textContent="登録中…";
-    if(!(await ensureUser())){$("#r-send").disabled=false;m.textContent="";return}
-    const {data,error}=await sb.from("films").insert({title,year:year?+year:null,verified:false,created_by:me}).select("id,title,year,release_date,now_showing,verified,created_by").single();
-    $("#r-send").disabled=false;
-    if(error){m.className="msg err";m.textContent=error.code==="23505"?"同じ作品がすでに登録されています。検索欄から選んでください。":errText(error);return}
-    films.push(data); filmById.set(data.id,data);
-    choose(data); $("#f-time").focus();
-  });
+  // 未登録の作品を「確認中」として登録する（同じ作品がすでにあればそれを使う）
+  async function provisionalFilm(title, year){
+    const same=films.find(f=>norm(f.title)===norm(title)&&(!year||String(f.year||"")===String(year)));
+    if(same) return {film:same};
+    const cols="id,title,year,release_date,now_showing,verified,created_by";
+    let {data,error}=await sb.from("films").insert({title,year:year||null,verified:false,created_by:me}).select(cols).single();
+    if(error&&error.code==="23505"){
+      let q=sb.from("films").select(cols).eq("title",title); q=year?q.eq("year",year):q.is("year",null);
+      ({data,error}=await q.maybeSingle());
+    }
+    if(error||!data) return {error};
+    if(!filmById.has(data.id)){films.push(data);filmById.set(data.id,data)}
+    return {film:data};
+  }
 
   /* ---------- post ---------- */
   $("#form").addEventListener("submit",async ev=>{
     ev.preventDefault();
     const msg=$("#msg"); msg.className="msg";
     if(banned){msg.className="msg err";msg.textContent="このアカウントは投稿できません。";return}
-    if(!selected){msg.className="msg err";msg.textContent="作品名を検索して、候補から選んでください。見つからない場合は追加をリクエストできます。";$("#f-movie").focus();return}
+    const typedTitle=$("#f-movie").value.trim().replace(/\s+/g," ");
+    const newYear=$("#f-newyear").value.trim().replace(/[０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-65248));
+    if(!selected&&!typedTitle){msg.className="msg err";msg.textContent="作品名を入れてください。";$("#f-movie").focus();return}
+    if(!selected&&newYear&&!/^\d{4}$/.test(newYear)){msg.className="msg err";msg.textContent="公開年は4桁の数字で入れてください（わからなければ空欄で大丈夫です）。";$("#f-newyear").focus();return}
     const when=(document.querySelector("input[name=when]:checked")||{}).value||"time";
     const t=when==="time"?parse($("#f-time").value):null, phase=when==="time"?null:when, cue=$("#f-cue").value.trim();
     const lv=+(document.querySelector("input[name=lv]:checked")||{}).value||2;
@@ -333,10 +338,19 @@
     if(when==="time"&&(t==null||t>6*3600)){msg.className="msg err";msg.textContent=$("#f-time").value.trim()?"時間は「45」（分）や「1:02:15」の形で入れてください。":"何分ごろか入れるか、序盤・中盤・終盤から選んでください。";$("#f-time").focus();return}
     const b=$("#submit"); b.disabled=true; msg.textContent="投稿中…";
     if(!(await ensureUser())){b.disabled=false;msg.textContent="";return}
-    const {error}=await sb.from("scares").insert({film_id:selected.id,t,phase,approx:t==null?true:approx,lv,kinds,cue});
+    let film=selected;
+    if(!film){
+      const r=await provisionalFilm(typedTitle,newYear?+newYear:null);
+      if(r.error){b.disabled=false;msg.className="msg err";msg.textContent=errText(r.error);return}
+      film=r.film; choose(film); $("#f-newyear").value="";
+    }
+    const {error}=await sb.from("scares").insert({film_id:film.id,t,phase,approx:t==null?true:approx,lv,kinds,cue});
     b.disabled=false;
     if(error){msg.className="msg err";msg.textContent=errText(error);return}
-    msg.textContent="投稿しました。"; $("#f-time").value=""; $("#f-cue").value="";
+    msg.textContent=film.verified===false
+      ? "投稿しました。「"+film.title+"」はまだ登録されていない作品のため、実在するかをこちらで確認します。確認が済むまでは、作品名の横に「作品確認中」と表示されます。"
+      : "投稿しました。ありがとうございます！";
+    $("#f-time").value=""; $("#f-cue").value="";
     document.querySelectorAll("input[name=kind]").forEach(x=>x.checked=false);
     await refresh();
   });
