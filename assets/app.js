@@ -39,7 +39,7 @@
 
   /* ---------- data ---------- */
   async function loadFilms(){
-    const {data,error}=await sb.from("films").select("id,title,year,release_date,now_showing,verified,created_by").order("title");
+    const {data,error}=await sb.from("films").select("id,title,year,release_date,now_showing,verified,created_by,runtime_min").order("title");
     if(!error){films=data||[];filmById=new Map(films.map(f=>[f.id,f]))}
   }
   async function loadScares(){
@@ -137,7 +137,7 @@
       const e=el("div","empty");
       e.append(el("h3",null, loaded? "まだ投稿がありません" : "読み込み中…"));
       e.append(el("p",null,"観た映画のジャンプスケアの時刻を「場面を投稿する」から登録してください。下は表示イメージです（架空の作品）。"));
-      list.append(e); list.append(card({movie:SAMPLE[0].movie,year:SAMPLE[0].year,items:SAMPLE},true,true)); return;
+      list.append(e); list.append(card({movie:SAMPLE[0].movie,year:SAMPLE[0].year,runtime:100,items:SAMPLE},true,true)); return;
     }
     if(!gs.length){const e=el("div","empty");e.append(el("h3",null,"まだ投稿がありません"));e.append(el("p",null,"「"+$("#q").value.trim()+"」の情報はまだありません。観た方は「場面を投稿する」から最初の投稿をお願いします。"));
       const b=el("button","btn","この作品の場面を投稿する");b.type="button";b.style.marginTop="8px";b.onclick=()=>{$("#addbox").open=true;$("#addbox").scrollIntoView({block:"start"})};if(!banned)e.append(b);list.append(e);return}
@@ -146,19 +146,24 @@
 
   function card(g,showAll,sample){
     const timed=g.items.filter(i=>i.t!=null);
-    const maxT=timed.length?Math.max(...timed.map(i=>i.t)):0; const end=Math.max(5400,Math.ceil((maxT+300)/1800)*1800);
+    const maxT=timed.length?Math.max(...timed.map(i=>i.t)):0;
+    // 上映時間がわかる作品はその長さを帯の右端にする。わからない作品（仮登録など）は右端を「--:--」にする
+    const f=g.film_id!=null?filmById.get(g.film_id):null;
+    const runtime=(g.runtime||(f&&f.runtime_min)||0)*60;
+    const end=runtime? Math.max(runtime,maxT) : Math.max(5400,Math.ceil((maxT+300)/1800)*1800);
     const pos=i=>i.t!=null?i.t:PHASE_POS[i.phase]*end;
     const items=[...g.items].sort((a,b)=>pos(a)-pos(b));
     const c=el("article","film"+(sample?" sample":""));
     const h=el("div","filmhead");
-    const h3=el("h3"); if(!sample&&g.film_id!=null&&FILM_ID==null){const a=el("a",null,g.movie);a.href=filmUrl(g.film_id);h3.append(a)}else{h3.textContent=g.movie} if(g.year){h3.append(el("span","yr",g.year))} if(g.pending){h3.append(el("span","pend","作品確認中"))}
+    const h3=el("h3"); if(!sample&&g.film_id!=null&&FILM_ID==null){const a=el("a",null,g.movie);a.href=filmUrl(g.film_id);h3.append(a)}else{h3.textContent=g.movie} {const rm=runtime?Math.round(runtime/60):0; const meta=[g.year,rm?rm+"分":""].filter(Boolean).join("・"); if(meta)h3.append(el("span","yr",meta))} if(g.pending){h3.append(el("span","pend","作品確認中"))}
     if(sample){c.append(el("div","tag","表示イメージ"))}
     const cnt=el("div","count"); const big=items.filter(i=>i.lv==3).length;
     cnt.append(el("b",null,String(items.length)),document.createTextNode(" 件"+(big?"・かなり ":"")),...(big?[el("b",null,String(big)),document.createTextNode(" 件")]:[]));
     h.append(h3,cnt); c.append(h);
     const strip=el("div","strip"); strip.setAttribute("aria-hidden","true");
     items.forEach(i=>{const m=el("i");m.style.left=Math.min(98.5,Math.max(1.5,pos(i)/end*100))+"%";if(i.t==null)m.style.opacity=".55";m.style.background=`var(--lv${i.lv})`;strip.append(m)});
-    const axis=el("div","stripaxis"); axis.setAttribute("aria-hidden","true"); axis.append(el("span",null,"0:00"),el("span",null,fmt(end/2)),el("span",null,fmt(end)));
+    const axis=el("div","stripaxis"); axis.setAttribute("aria-hidden","true"); axis.append(el("span",null,"0:00"),el("span",null,runtime?fmt(end/2):""),el("span",null,runtime?fmt(end):"--:--"));
+    if(runtime) axis.title="上映時間 "+Math.round(runtime/60)+"分";
     c.append(strip,axis);
     const ul=el("ul","scares");
     items.forEach(i=>{
@@ -310,7 +315,7 @@
   async function provisionalFilm(title, year){
     const same=films.find(f=>norm(f.title)===norm(title)&&(!year||String(f.year||"")===String(year)));
     if(same) return {film:same};
-    const cols="id,title,year,release_date,now_showing,verified,created_by";
+    const cols="id,title,year,release_date,now_showing,verified,created_by,runtime_min";
     let {data,error}=await sb.from("films").insert({title,year:year||null,verified:false,created_by:me}).select(cols).single();
     if(error&&error.code==="23505"){
       let q=sb.from("films").select(cols).eq("title",title); q=year?q.eq("year",year):q.is("year",null);

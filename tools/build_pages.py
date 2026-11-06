@@ -33,7 +33,7 @@ def fetch(path):
 def load_data():
     if os.environ.get("DATA_JSON"):
         return json.load(open(os.environ["DATA_JSON"], encoding="utf-8"))
-    films = fetch("films?select=id,title,year,release_date,now_showing,verified&order=id")
+    films = fetch("films?select=id,title,year,release_date,now_showing,verified,runtime_min&order=id")
     scares = fetch("scares?select=film_id,t,phase,approx,lv,kinds,created_at&limit=10000")
     return {"films": films, "scares": scares}
 
@@ -111,7 +111,8 @@ def film_page(tpl, f, items):
 <meta name="twitter:image" content="{SITE}og.png">
 <!--/META-->"""
 
-    summary = (
+    rt = f"上映時間{f['runtime_min']}分。" if f.get("runtime_min") else ""
+    summary = rt + (
         f"『{esc(title)}』で急に驚かされる場面がいつ来るかの情報です。投稿{n}件" + (f"（うち「かなり」{strong}件）" if strong else "") + "。何が出るかは書いていません。"
         if n
         else f"『{esc(title)}』で急に驚かされる場面の情報は、まだありません。観た方は「いつ」来たかを教えてください。"
