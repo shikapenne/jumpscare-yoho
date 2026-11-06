@@ -109,7 +109,7 @@
     now.forEach(f=>{
       const h=hue(f.title), n=cnt.get(f.id)||0;
       const b=el("a","tcard"); b.href=filmUrl(f.id);
-      b.style.setProperty("--c1",`hsl(${h} 34% 30%)`); b.style.setProperty("--c2",`hsl(${(h+48)%360} 42% 44%)`);
+      const H=205+h%70; b.style.setProperty("--c1",`hsl(${H} 42% 30%)`); b.style.setProperty("--c2",`hsl(${H+25} 52% 52%)`);
       b.setAttribute("aria-pressed", String(!!qn && qn===norm(f.title)));
       b.append(el("span","rel",(f.release_date||"").replace(/-/g,".")+" 公開"), el("span","ttl",f.title), el("span","badge"+(n?"":" none"), n? `${n}件の投稿` : "情報まだなし"));
       shelf.append(b);

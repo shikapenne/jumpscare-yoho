@@ -118,7 +118,7 @@ def film_page(tpl, f, items):
     )
     header = f"""<!--HEADER-->
   <header>
-    <p class="crumb"><a href="../../">ジャンプスケア予報</a> › 作品</p>
+    <p class="crumb"><a class="logo" href="../../"><img src="../../assets/logo.svg" alt="ジャンプスケア予報（トップへ）" width="558" height="80"></a></p>
     <h1>{esc(name)}のジャンプスケア</h1>
     <p>{summary}</p>
     <ul class="rules">
@@ -156,8 +156,7 @@ def not_found_page(tpl):
 <!--/META-->"""
     header = """<!--HEADER-->
   <header>
-    <p class="crumb"><a href="/jumpscare-yoho/">ジャンプスケア予報</a></p>
-    <h1>ジャンプスケア予報</h1>
+    <h1 class="logo"><a href="/jumpscare-yoho/"><img src="/jumpscare-yoho/assets/logo.svg" alt="ジャンプスケア予報" width="558" height="80"></a></h1>
     <p>映画の「急に驚かされる場面」がいつ来るかを、ネタバレなしで共有するサイトです。</p>
   </header>
   <!--/HEADER-->"""

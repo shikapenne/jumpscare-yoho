@@ -1,26 +1,26 @@
 body{margin:0}
 [hidden]{display:none!important}
 
-/* Layout: one calm reading column; a "forecast" card per film with a runtime strip showing where scares fall */
+/* Layout: one calm reading column; a "forecast" card per film with a runtime strip showing where scares fall.
+   Palette: bright sky-white page, navy ink from the logo, storm blue for actions, signal colors for scare strength. */
 :root{
-  --bg:#eef3f1; --surface:#ffffff; --ink:#1c3a3a; --muted:#5d7774; --line:#d3e0dc;
-  --accent:#2f7d72; --accent-soft:#dcefe9;
-  --lv1:#9cc7a4; --lv2:#e3b45a; --lv3:#d9705a;
+  --bg:#f4f6fc; --surface:#ffffff; --ink:#18224a; --muted:#5b6386; --line:#dde2f1;
+  --accent:#3f55a8; --accent-soft:#e7ebfb; --accent-ink:#ffffff;
+  --sun:#ffd84a; --alert:#e5484d;
+  --lv1:#8ccaa0; --lv2:#f2b94b; --lv3:#ec6a5e; --lv-ink:#18224a;
   --display:"Noto Sans JP","Hiragino Kaku Gothic ProN","Hiragino Sans",Meiryo,system-ui,sans-serif;
   --body:"Noto Sans JP","Hiragino Kaku Gothic ProN","Hiragino Sans",Meiryo,system-ui,sans-serif;
   --mono:"Noto Sans JP","Hiragino Kaku Gothic ProN","Hiragino Sans",Meiryo,system-ui,sans-serif;
+  color-scheme:light;
 }
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --bg:#13201f; --surface:#1b2b2a; --ink:#dcebe7; --muted:#93aca8; --line:#2c403e;
-  --accent:#6cc2b3; --accent-soft:#21403c; --lv1:#6fa47a; --lv2:#c99a43; --lv3:#d47462; color-scheme:dark}}
-:root[data-theme="dark"]{
-  --bg:#13201f; --surface:#1b2b2a; --ink:#dcebe7; --muted:#93aca8; --line:#2c403e;
-  --accent:#6cc2b3; --accent-soft:#21403c; --lv1:#6fa47a; --lv2:#c99a43; --lv3:#d47462; color-scheme:dark}
-
 body{background:var(--bg);color:var(--ink);font-family:var(--body);font-variant-numeric:tabular-nums;font-size:15px;line-height:1.7}
 .wrap{max-width:720px;margin:0 auto;padding-block:28px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:28px}
 h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;line-height:1.35}
 header h1{font-size:clamp(28px,6vw,38px);font-weight:700;letter-spacing:0}
+.logo{display:block;margin:0}
+.logo img{display:block;height:clamp(44px,11vw,64px);width:auto;max-width:100%}
+.crumb .logo img{height:34px}
+header{display:flex;flex-direction:column;gap:4px}
 header p{margin:.4em 0 0;color:var(--muted);max-width:36em}
 .rules{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;padding:0;list-style:none}
 .rules li{font-size:13px;background:var(--accent-soft);color:var(--ink);padding:4px 12px;border-radius:999px}
@@ -75,7 +75,7 @@ form{padding:0 18px 18px;display:grid;grid-template-columns:repeat(6,1fr);gap:12
 .scares{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
 .scares li{display:grid;grid-template-columns:auto auto 1fr auto;gap:4px 12px;align-items:baseline;padding:9px 0;border-top:1px solid var(--line)}
 .tc{font-family:var(--mono);font-weight:600;font-size:16px;font-variant-numeric:tabular-nums}
-.lv{font-size:12px;font-weight:700;padding:1px 9px;border-radius:999px;white-space:nowrap;color:#1c2a29}
+.lv{font-size:12px;font-weight:700;padding:1px 9px;border-radius:999px;white-space:nowrap;color:var(--lv-ink)}
 .lv1{background:var(--lv1)}.lv2{background:var(--lv2)}.lv3{background:var(--lv3)}
 .meta{font-size:13px;color:var(--muted);min-width:0}
 .cue{grid-column:2 / -1;font-size:14px;min-width:0;overflow-wrap:anywhere}
@@ -99,7 +99,7 @@ footer{font-size:12px;color:var(--muted)}
 .tcard>*{position:relative}
 .tcard .rel{font-family:var(--mono);font-size:11px;opacity:.85;letter-spacing:.04em}
 .tcard .ttl{font-family:var(--display);font-weight:700;font-size:16px;line-height:1.3;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden;text-shadow:0 1px 2px rgba(0,0,0,.25)}
-.tcard .badge{align-self:flex-start;font-size:11px;font-weight:700;background:rgba(255,255,255,.9);color:#1c2a29;border-radius:999px;padding:1px 8px}
+.tcard .badge{align-self:flex-start;font-size:11px;font-weight:700;background:rgba(255,255,255,.9);color:var(--lv-ink);border-radius:999px;padding:1px 8px}
 .tcard .badge.none{background:rgba(0,0,0,.25);color:#fff}
 .tcard[aria-pressed="true"]{outline:3px solid var(--accent);outline-offset:2px}
 .combo{position:relative}
