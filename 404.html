@@ -52,13 +52,10 @@
       <div class="field c4 combo"><label for="f-movie">作品名</label>
         <input id="f-movie" required maxlength="80" placeholder="作品名で検索" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="f-results" aria-autocomplete="list">
         <ul class="results" id="f-results" role="listbox" hidden></ul>
-        <small id="f-movie-note">登録済みの作品から選んでください</small></div>
+        <small id="f-movie-note">候補から選んでください。見つからない作品も、そのまま作品名を入れれば投稿できます。</small></div>
       <div class="field c2" id="yearfield" hidden><span class="lab">公開年</span><span id="f-year" class="yearval"></span></div>
-      <div class="field c6 reqbox" id="reqbox" hidden>
-        <p>見つからない作品は、ここで仮登録すればすぐに投稿できます。仮登録した作品は「確認中」と表示され、あとで管理者が正式な作品名に整えます。</p>
-        <div class="reqrow"><input id="r-title" maxlength="80" placeholder="作品名" aria-label="仮登録する作品名"><input id="r-year" maxlength="4" inputmode="numeric" placeholder="公開年(任意)" aria-label="公開年"><button class="btn sub" type="button" id="r-send">仮登録して投稿へ進む</button></div>
-        <span class="msg" id="r-msg" role="status"></span>
-      </div>
+      <div class="field c2" id="newyearfield" hidden><label for="f-newyear">公開年（わかれば）</label><input id="f-newyear" maxlength="4" inputmode="numeric" placeholder="例：2019"></div>
+      <p class="field c6 newnote" id="newnote" hidden>まだ登録されていない作品です。このまま投稿でき、投稿のあとで作品が実在するかを確認します。</p>
       <div class="field c6"><span class="lab">いつ来る？</span>
         <div class="seg" role="radiogroup" aria-label="いつ来るか">
           <label><input type="radio" name="when" value="time" id="f-w0" checked><span>時間で入力</span></label>
